@@ -1,0 +1,10 @@
+{
+  "name": "Belajar Mandiri",
+  "short_name": "Belajar",
+  "description": "Ruang belajar personal dengan materi, latihan, target, dan asisten AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ee",
+  "theme_color": "#26323a",
+  "lang": "id"
+}
