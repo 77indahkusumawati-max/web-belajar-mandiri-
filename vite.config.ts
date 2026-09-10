@@ -17,12 +17,6 @@ const LOG_DIR = path.join(PROJECT_ROOT, ".manus-logs");
 const MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024; // 1MB per log file
 const TRIM_TARGET_BYTES = Math.floor(MAX_LOG_SIZE_BYTES * 0.6); // Trim to 60% to avoid constant re-trimming
 
-function withoutTrailingSlashes(value: string) {
-  let result = value;
-  while (result.endsWith("/")) result = result.slice(0, -1);
-  return result;
-}
-
 type LogSource = "browserConsole" | "networkRequests" | "sessionReplay";
 
 function ensureLogDir() {
@@ -169,7 +163,10 @@ function vitePluginStorageProxy(): Plugin {
           return;
         }
 
-        const forgeBaseUrl = withoutTrailingSlashes(process.env.BUILT_IN_FORGE_API_URL || "");
+        const forgeBaseUrl = (process.env.BUILT_IN_FORGE_API_URL || "").replace(
+          /\/+$/,
+          ""
+        );
         const forgeKey = process.env.BUILT_IN_FORGE_API_KEY;
 
         if (!forgeBaseUrl || !forgeKey) {
@@ -222,10 +219,7 @@ function vitePluginAiProxy(): Plugin {
         const apiKey = process.env.OPENAI_API_KEY || process.env.BUILT_IN_FORGE_API_KEY;
         const configuredUrl = process.env.OPENAI_API_URL;
         const forgeUrl = process.env.BUILT_IN_FORGE_API_URL;
-        const apiUrl = withoutTrailingSlashes(
-          configuredUrl ||
-            (forgeUrl ? `${forgeUrl}/v1/chat/completions` : "https://api.openai.com/v1/chat/completions"),
-        );
+        const apiUrl = (configuredUrl || (forgeUrl ? `${forgeUrl}/v1/chat/completions` : "https://api.openai.com/v1/chat/completions")).replace(/\/$/, "");
         if (!apiKey) {
           res.writeHead(503, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "OPENAI_API_KEY belum dikonfigurasi. Isi file .env lalu restart server." }));
