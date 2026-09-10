@@ -8,7 +8,6 @@ import {
   Menu,
   MessageCirclePlus,
   MoreHorizontal,
-  PanelLeftClose,
   Plus,
   Send,
   Sparkles,
@@ -24,15 +23,22 @@ type MessageRole = "user" | "assistant";
 type ChatMessage = { id: string; role: MessageRole; content: string; createdAt: string };
 type ChatSession = { id: string; title: string; messages: ChatMessage[]; updatedAt: string };
 
-type AiLearningRoomProps = {
+type AiLearningRoomProps = Readonly<{
   subject: string;
   level?: string;
   userName: string;
-};
+}>;
 
 const STORAGE_KEY = "belajar_ai_conversations";
 const OLD_HISTORY_KEY = "belajar_ai_history";
 const welcomeMessage = (userName: string) => `Halo ${userName}! Aku teman belajar AI-mu. Kamu boleh menanyakan apa saja—pelajaran, pekerjaan rumah, ide, bahasa, teknologi, atau topik sehari-hari. Aku akan membantu menjelaskannya dengan cara yang mudah dipahami.`;
+
+const createId = (prefix: string) => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${performance.now().toFixed(3)}`;
+};
 
 const quickPrompts = [
   { label: "Jelaskan dengan sederhana", prompt: "Jelaskan konsep yang sedang kupelajari dengan bahasa sederhana dan contoh sehari-hari." },
@@ -56,7 +62,7 @@ async function fetchWithTimeout(
 }
 
 const createMessage = (role: MessageRole, content: string): ChatMessage => ({
-  id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  id: createId("message"),
   role,
   content,
   createdAt: new Date().toISOString(),
@@ -65,7 +71,7 @@ const createMessage = (role: MessageRole, content: string): ChatMessage => ({
 const createSession = (userName: string): ChatSession => {
   const now = new Date().toISOString();
   return {
-    id: `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: createId("chat"),
     title: "Percakapan baru",
     messages: [createMessage("assistant", welcomeMessage(userName))],
     updatedAt: now,
@@ -80,7 +86,7 @@ function loadSessions(userName: string): ChatSession[] {
     if (oldHistory.length) {
       const migrated = createSession(userName);
       migrated.title = oldHistory[0]?.prompt?.slice(0, 42) || "Percakapan sebelumnya";
-      migrated.messages = oldHistory.reverse().flatMap((item) => [
+      migrated.messages = [...oldHistory].reverse().flatMap((item) => [
         createMessage("user", item.prompt || "Pertanyaan sebelumnya"),
         createMessage("assistant", item.answer || "Jawaban sebelumnya"),
       ]);
@@ -119,12 +125,17 @@ function fallbackAnswer(question: string, subject: string, level?: string) {
   if (lower.includes("apa kabar") || lower.includes("halo") || lower.includes("hai")) {
     return `Halo! Aku siap membantu. Kamu sedang berada di ${level || "ruang belajar"} dengan konteks ${subject}, tetapi bebas bertanya tentang topik lain juga.`;
   }
-  const arithmetic = lower.match(/^\s*(\d+(?:\.\d+)?)\s*([+\-x*÷/:])\s*(\d+(?:\.\d+)?)\s*\??\s*$/);
+  const arithmetic = /^\s*(\d+(?:\.\d+)?)\s*([+\-x*÷/:])\s*(\d+(?:\.\d+)?)\s*\??\s*$/.exec(lower);
   if (arithmetic) {
     const left = Number(arithmetic[1]);
     const right = Number(arithmetic[3]);
     const operator = arithmetic[2];
-    const result = operator === "+" ? left + right : operator === "-" ? left - right : operator === "÷" || operator === "/" || operator === ":" ? (right === 0 ? null : left / right) : left * right;
+    let result: number | null;
+    if (operator === "+") result = left + right;
+    else if (operator === "-") result = left - right;
+    else if (operator === "÷" || operator === "/" || operator === ":") {
+      result = right === 0 ? null : left / right;
+    } else result = left * right;
     return result === null ? "Pembagian dengan nol tidak terdefinisi." : `${left} ${operator} ${right} = ${result}`;
   }
   if ((lower.includes("mapel") || lower.includes("mata pelajaran")) && lower.includes("fisika")) {
